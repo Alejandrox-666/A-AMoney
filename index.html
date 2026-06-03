@@ -327,7 +327,7 @@
   <div class="header">
     <div class="logo-area">
       <h1><i class="fas fa-coins" style="color: #3b82f6;"></i> A&A - Money</h1>
-      <p>Mis finanzas · Visualiza · Metas</p>
+      <p>Mis finanzas - Mis metas</p>
     </div>
     <button class="theme-toggle" id="themeToggleBtn"><i class="fas fa-moon"></i> <span>Modo oscuro</span></button>
   </div>
@@ -346,7 +346,7 @@
     <div class="chart-panel">
       <div class="section-title"><i class="fas fa-chart-pie icon-accent"></i> Distribución por categoría</div>
       <canvas id="expenseChart" width="400" height="300" style="width:100%; max-height:260px;"></canvas>
-      <div class="chart-legend-note"><i class="fas fa-info-circle"></i> Egresos por categorías</div>
+      <div class="chart-legend-note"><i class="fas fa-info-circle"></i> Egresos por categorías (en COP)</div>
     </div>
 
     <!-- formulario + lista -->
@@ -355,7 +355,7 @@
       <div class="form-row">
         <div class="form-group"><select id="typeSelect"><option value="income">💰 Ingreso</option><option value="expense">💸 Gasto</option></select></div>
         <div class="form-group"><input type="text" id="descInput" placeholder="Concepto (ej. Netflix, Salario)" autocomplete="off"></div>
-        <div class="form-group"><input type="number" id="amountInput" placeholder="Cantidad $" step="0.01"></div>
+        <div class="form-group"><input type="number" id="amountInput" placeholder="Cantidad en COP $" step="0.01"></div>
         <div class="form-group"><select id="categorySelect"><option value="Comida">🍔 Comida</option><option value="Transporte">🚗 Transporte</option><option value="Entretenimiento">🎬 Entretenimiento</option><option value="Servicios">📱 Suscripciones</option><option value="Salud">💊 Salud</option><option value="Hogar">🏠 Hogar</option><option value="Otros">📌 Otros</option></select></div>
         <div class="form-group"><button id="addBtn" class="btn-primary"><i class="fas fa-save"></i> Agregar</button></div>
       </div>
@@ -374,7 +374,7 @@
     </div>
   </div>
   <div class="footer-note">
-    <i class="fas fa-database"></i> Pequeños ahorros crean grandes resultados - 1997
+    <i class="fas fa-database"></i> Pequeños ahorros crean grandes resultados
   </div>
 </div>
 
@@ -399,19 +399,44 @@
   const resetFiltersBtn = document.getElementById('resetFiltersBtn');
   const themeToggle = document.getElementById('themeToggleBtn');
 
+  // ----- FORMATO DE PESO COLOMBIANO (COP) -----
+  // Función que recibe un número y devuelve formato COP: ej: $ 12.345.678
+  function formatCOP(value) {
+    if (value === undefined || value === null) return '$0';
+    // Redondear a 2 decimales pero sin mostrarlos si son cero (para pesos colombianos normalmente no se usan decimales, pero respetamos si existen)
+    let number = typeof value === 'number' ? value : parseFloat(value);
+    if (isNaN(number)) return '$0';
+    // Para montos con decimales significativos (centavos), mostrar 2 decimales si es necesario (útil si hay valores .50)
+    const hasDecimal = Math.abs(number - Math.floor(number)) > 0.001;
+    let formatted;
+    if (hasDecimal) {
+      formatted = number.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    } else {
+      formatted = number.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+    return `$ ${formatted}`;
+  }
+
+  // Función para formatear en lista con signo +/-
+  function formatSignedCOP(amount, type) {
+    const absFormatted = formatCOP(Math.abs(amount));
+    if (type === 'income') return `+ ${absFormatted}`;
+    return `- ${absFormatted}`;
+  }
+
   // Cargar desde localStorage
   function loadData() {
     const stored = localStorage.getItem('moneymind_transactions');
     if(stored) {
       transactions = JSON.parse(stored);
     } else {
-      // transacciones demo de muestra (bonitas para empezar)
+      // transacciones demo de muestra (bonitas para empezar) en COP valores típicos colombianos
       transactions = [
-        { id: Date.now()+1, type: 'income', description: 'Salario freelance', amount: 2850.00, category: 'Otros', date: new Date().toISOString() },
-        { id: Date.now()+2, type: 'expense', description: 'Supermercado', amount: 245.50, category: 'Comida', date: new Date().toISOString() },
-        { id: Date.now()+3, type: 'expense', description: 'Netflix + Spotify', amount: 31.99, category: 'Servicios', date: new Date().toISOString() },
-        { id: Date.now()+4, type: 'expense', description: 'Uber / Transporte', amount: 42.30, category: 'Transporte', date: new Date().toISOString() },
-        { id: Date.now()+5, type: 'income', description: 'Venta segunda mano', amount: 120.00, category: 'Otros', date: new Date().toISOString() }
+        { id: Date.now()+1, type: 'income', description: 'Salario freelance', amount: 2850000.00, category: 'Otros', date: new Date().toISOString() },
+        { id: Date.now()+2, type: 'expense', description: 'Supermercado', amount: 245500.50, category: 'Comida', date: new Date().toISOString() },
+        { id: Date.now()+3, type: 'expense', description: 'Netflix + Spotify', amount: 31990.00, category: 'Servicios', date: new Date().toISOString() },
+        { id: Date.now()+4, type: 'expense', description: 'Uber / Transporte', amount: 42300.00, category: 'Transporte', date: new Date().toISOString() },
+        { id: Date.now()+5, type: 'income', description: 'Venta segunda mano', amount: 120000.00, category: 'Otros', date: new Date().toISOString() }
       ];
       saveToLocal();
     }
@@ -421,7 +446,7 @@
     localStorage.setItem('moneymind_transactions', JSON.stringify(transactions));
   }
 
-  // Actualizar stats (balance, ingresos, gastos)
+  // Actualizar stats (balance, ingresos, gastos) usando formato COP
   function updateStats() {
     let totalIncome = 0, totalExpense = 0;
     transactions.forEach(t => {
@@ -429,9 +454,9 @@
       else totalExpense += t.amount;
     });
     const balance = totalIncome - totalExpense;
-    totalBalanceEl.innerText = `$${balance.toFixed(2)}`;
-    totalIncomeEl.innerText = `$${totalIncome.toFixed(2)}`;
-    totalExpenseEl.innerText = `$${totalExpense.toFixed(2)}`;
+    totalBalanceEl.innerText = formatCOP(balance);
+    totalIncomeEl.innerText = formatCOP(totalIncome);
+    totalExpenseEl.innerText = formatCOP(totalExpense);
     transactionCountEl.innerText = transactions.length;
   }
 
@@ -448,7 +473,7 @@
     return categoryMap;
   }
 
-  // Actualizar gráfico Doughnut (solo gastos)
+  // Actualizar gráfico Doughnut (solo gastos) con tooltip en COP
   function updateChart() {
     const expensesMap = getExpensesByCategory();
     const categories = Array.from(expensesMap.keys());
@@ -471,11 +496,26 @@
     expenseChartInstance = new Chart(ctx, {
       type: 'doughnut',
       data: { labels: categories, datasets: [{ data: amounts, backgroundColor: backgroundColors, borderWidth: 0, hoverOffset: 8 }] },
-      options: { responsive: true, maintainAspectRatio: true, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { color: getComputedStyle(document.body).getPropertyValue('--text-primary') } }, tooltip: { callbacks: { label: (ctx) => `${ctx.label}: $${ctx.raw.toFixed(2)}` } } } }
+      options: { 
+        responsive: true, 
+        maintainAspectRatio: true, 
+        cutout: '60%', 
+        plugins: { 
+          legend: { position: 'bottom', labels: { color: getComputedStyle(document.body).getPropertyValue('--text-primary') } }, 
+          tooltip: { 
+            callbacks: { 
+              label: (ctx) => {
+                const valor = ctx.raw;
+                return `${ctx.label}: ${formatCOP(valor)}`;
+              }
+            } 
+          } 
+        } 
+      }
     });
   }
 
-  // Renderizar lista de transacciones con filtros
+  // Renderizar lista de transacciones con filtros y formato COP
   function renderTransactionsList() {
     const filterType = filterTypeSelect.value;
     const filterCat = filterCategorySelect.value;
@@ -493,7 +533,8 @@
     filtered.forEach(t => {
       const itemDiv = document.createElement('div');
       itemDiv.className = `transaction-item ${t.type === 'income' ? 'income-border' : 'expense-border'}`;
-      const sign = t.type === 'income' ? '+' : '-';
+      const signSymbol = t.type === 'income' ? '+' : '-';
+      const amountFormatted = formatCOP(Math.abs(t.amount));
       const amountClass = t.type === 'income' ? 'positive' : 'negative';
       itemDiv.innerHTML = `
         <div class="transaction-info">
@@ -501,7 +542,7 @@
           <span class="transaction-cat"><i class="fas fa-tag"></i> ${t.category}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 12px;">
-          <span class="transaction-amount ${amountClass}">${sign}$${Math.abs(t.amount).toFixed(2)}</span>
+          <span class="transaction-amount ${amountClass}">${signSymbol} ${amountFormatted}</span>
           <button class="delete-btn" data-id="${t.id}"><i class="fas fa-trash-alt"></i></button>
         </div>
       `;
@@ -536,14 +577,14 @@
       return;
     }
     if(isNaN(amount) || amount <= 0) {
-      alert('Cantidad válida mayor a 0');
+      alert('Cantidad válida mayor a 0 en Pesos Colombianos');
       return;
     }
     // si es gasto, validar categoría
     if(type === 'expense' && !category) category = 'Otros';
     if(type === 'income') {
-      // para ingresos asignamos categoría "Ingreso" pero lo dejamos coherente en gráfica no afecta
-      category = 'Ingresos';  // los ingresos no se pintan en el gráfico de gastos
+      // para ingresos asignamos categoría "Ingreso" (no afecta gráfico de gastos)
+      category = 'Ingresos';
     }
     const newTransaction = {
       id: Date.now(),
@@ -559,7 +600,7 @@
     amountInput.value = '';
     typeSelect.value = 'expense';
     refreshAllUI();
-    showToastNotification('¡Añadido correctamente!', 'add');
+    showToastNotification(`¡Añadido! ${formatCOP(amount)} ${type === 'income' ? 'ingresado' : 'gastado'}`, 'add');
   }
   
   function refreshAllUI() {
@@ -576,7 +617,6 @@
 
   // pequeña notificación emergente (simple)
   function showToastNotification(msg, type) {
-    // Toast flotante improvisado
     const toast = document.createElement('div');
     toast.innerText = msg;
     toast.style.position = 'fixed';
